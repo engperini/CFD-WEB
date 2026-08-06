@@ -249,16 +249,13 @@ function arrangeRackRows(project: DataHallProject, racks: DataHallElement[]): Da
     Array.from({ length: rows - 1 }, (_, index) =>
       index % 2 === 0 ? project.settings.coldAisleM : project.settings.hotAisleM
     ).reduce((sum, value) => sum + value, 0);
-  const availableWidth = project.room.widthM - project.settings.wallClearanceM * 2;
-  const rackSpan = maxCount * project.rackDefaults.widthM;
-  const rackGap = maxCount > 1 ? clamp((availableWidth - rackSpan) / (maxCount - 1), 0, 0.3) : 0;
   let rackIndex = 0;
   let y = Math.max(project.settings.wallClearanceM, (project.room.lengthM - totalDepth) / 2);
   const result: DataHallElement[] = [];
 
   for (let row = 0; row < rows; row += 1) {
     const count = rowCounts[row];
-    const rowWidth = count * project.rackDefaults.widthM + Math.max(0, count - 1) * rackGap;
+    const rowWidth = count * project.rackDefaults.widthM;
     const xStart = Math.max(project.settings.wallClearanceM, (project.room.widthM - rowWidth) / 2);
     const orientation: Orientation = row % 2 === 0 ? "north" : "south";
 
@@ -269,7 +266,7 @@ function arrangeRackRows(project: DataHallProject, racks: DataHallElement[]): Da
           {
             ...source,
             label: source.label || `R${rackIndex + 1}`,
-            x: round(xStart + column * (project.rackDefaults.widthM + rackGap)),
+            x: round(xStart + column * project.rackDefaults.widthM),
             y: round(y),
             z: 0,
             widthM: project.rackDefaults.widthM,
