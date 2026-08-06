@@ -81,4 +81,15 @@ describe("layoutEngine", () => {
 
     expect(project.elements.map((element) => element.id)).toEqual(["rack-2"]);
   });
+
+  it("permite reduzir fan walls limpando e recriando o conjunto", () => {
+    const project = applyCommands(createDefaultProject(), [
+      { type: "add_fan_walls", count: 4 },
+      { type: "clear_layout", target: "fanWalls" },
+      { type: "add_fan_walls", count: 2 },
+      { type: "auto_arrange" }
+    ]);
+
+    expect(project.elements.filter((element) => element.type === "fanWall")).toHaveLength(2);
+  });
 });

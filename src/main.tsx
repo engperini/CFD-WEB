@@ -74,6 +74,17 @@ function App() {
   }
 
   function applyManualSettings(form: FormData) {
+    const desiredFanWallCount = numberFrom(form, "fanCount");
+    const currentFanWallCount = project.elements.filter((element) => element.type === "fanWall").length;
+    const fanWallCommand: StructuredCommand = {
+      type: "add_fan_walls",
+      count: desiredFanWallCount >= currentFanWallCount ? desiredFanWallCount - currentFanWallCount : desiredFanWallCount,
+      wall: form.get("fanWall") as Wall,
+      widthM: numberFrom(form, "fanWidth"),
+      depthM: numberFrom(form, "fanDepth"),
+      heightM: numberFrom(form, "fanHeight"),
+      airflowM3h: numberFrom(form, "fanAirflow")
+    };
     const commands: StructuredCommand[] = [
       {
         type: "resize_room",
@@ -96,15 +107,9 @@ function App() {
         coldAisleM: numberFrom(form, "coldAisle"),
         hotAisleM: numberFrom(form, "hotAisle")
       },
-      {
-        type: "add_fan_walls",
-        count: Math.max(0, numberFrom(form, "fanCount") - project.elements.filter((e) => e.type === "fanWall").length),
-        wall: form.get("fanWall") as Wall,
-        widthM: numberFrom(form, "fanWidth"),
-        depthM: numberFrom(form, "fanDepth"),
-        heightM: numberFrom(form, "fanHeight"),
-        airflowM3h: numberFrom(form, "fanAirflow")
-      },
+      ...(desiredFanWallCount < currentFanWallCount
+        ? ([{ type: "clear_layout", target: "fanWalls" }, fanWallCommand] as StructuredCommand[])
+        : [fanWallCommand]),
       { type: "set_wall_clearance", wallClearanceM: numberFrom(form, "wallClearance") },
       { type: "auto_arrange" }
     ];
