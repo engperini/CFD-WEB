@@ -9,6 +9,7 @@ import {
   interpretResponseSchema,
   transcribeRequestSchema
 } from "../src/shared/commandSchemas.js";
+import { normalizeAiCommands } from "../src/shared/commandNormalizer.js";
 
 const ROOT = process.cwd();
 const DIST_DIR = join(ROOT, "dist");
@@ -117,7 +118,9 @@ async function handleInterpretation(req: IncomingMessage, res: ServerResponse) {
     "Voce e o parser tecnico de um modelador parametrico de Data Hall.",
     "Converta a instrucao em JSON estrito no formato {\"message\":\"...\",\"commands\":[...]}",
     "Use somente estes comandos: create_room, resize_room, add_racks, create_rack_rows, add_fan_walls, move_element, rotate_element, set_aisle_width, set_wall_clearance, auto_arrange, delete_element, clear_layout, undo, redo.",
+    "Use somente estes nomes de campos: count, rows, widthM, lengthM, heightM, depthM, powerKw, airflowM3h, wall, orientation, x, y, z, rotation, id, target, coldAisleM, hotAisleM, wallClearanceM.",
     "Use metros em campos *M, kW em powerKw e m3/h em airflowM3h. Converta milimetros para metros.",
+    "Para 'N racks em cada fileira', calcule count como N multiplicado pela quantidade atual de fileiras no Estado atual, e inclua create_rack_rows com count e rows.",
     "Nao use a Realtime API. Nao invente ids se o usuario nao especificar um elemento existente.",
     "Retorne somente JSON valido, sem markdown.",
     `Estado atual: ${JSON.stringify(body.project || {})}`
@@ -151,7 +154,7 @@ async function handleInterpretation(req: IncomingMessage, res: ServerResponse) {
 
   const result = interpretResponseSchema.safeParse({
     message: parsed.message,
-    commands: parsed.commands ?? parsed.actions ?? []
+    commands: normalizeAiCommands(parsed.commands ?? parsed.actions ?? parsed.command ?? parsed.action ?? [], body.project, body.text)
   });
   if (!result.success) {
     return sendJson(res, 422, { error: "A IA retornou comandos fora do contrato esperado." });

@@ -7,6 +7,7 @@ import {
   moveElement,
   overlaps
 } from "../src/shared/layoutEngine";
+import { normalizeAiCommands } from "../src/shared/commandNormalizer";
 
 describe("layoutEngine", () => {
   it("organiza racks e fan walls automaticamente", () => {
@@ -121,5 +122,27 @@ describe("layoutEngine", () => {
     ]);
 
     expect(project.elements.filter((element) => element.type === "fanWall")).toHaveLength(2);
+  });
+
+  it("normaliza resposta da IA com aliases e valores com unidade", () => {
+    const commands = normalizeAiCommands([
+      { type: "configure_racks", quantidade: "24 racks", potencia: "30kW" }
+    ]);
+
+    expect(commands).toEqual([{ type: "add_racks", count: 24, powerKw: 30 }]);
+  });
+
+  it("interpreta racks por fileira a partir do texto do usuario", () => {
+    const commands = normalizeAiCommands(
+      [{ type: "add_racks", count: 24, power_kw: "30kW" }],
+      { settings: { rackRows: 2 } },
+      "quero 24 rack em cada fileira sendo todos racks de 30kW"
+    );
+
+    expect(commands).toEqual([
+      { type: "add_racks", count: 48, powerKw: 30 },
+      { type: "create_rack_rows", count: 48, rows: 2 },
+      { type: "auto_arrange" }
+    ]);
   });
 });
