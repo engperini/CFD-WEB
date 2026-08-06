@@ -1,13 +1,32 @@
 {
   "name": "cfd-web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Modelador de data hall operado por voz e inteligência artificial.",
+  "description": "Modelador parametrico de data hall operado por interface grafica, texto e voz.",
   "scripts": {
-    "dev": "node --watch server.mjs",
-    "start": "node server.mjs",
-    "test": "node --test"
+    "dev": "tsx watch server/index.ts",
+    "dev:client": "vite --host 0.0.0.0",
+    "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.json && vite build",
+    "start": "node dist-server/server/index.js",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "konva": "^9.3.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-konva": "^18.2.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20.11"
