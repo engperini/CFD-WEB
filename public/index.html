@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111827" />
+    <title>CFD-WEB · Data Hall AI Modeler</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">CFD-WEB</p>
+        <h1>Data Hall AI Modeler</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="ai-badge" class="status-badge">Verificando IA…</span>
+        <button id="undo" class="secondary">Desfazer</button>
+        <button id="redo" class="secondary">Refazer</button>
+        <button id="save-json" class="secondary">Salvar JSON</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="panel controls-panel">
+        <section>
+          <h2>Sala</h2>
+          <div class="field-grid three">
+            <label>Largura (m)<input id="room-width" type="number" min="3" step="0.1" /></label>
+            <label>Comprimento (m)<input id="room-length" type="number" min="3" step="0.1" /></label>
+            <label>Altura (m)<input id="room-height" type="number" min="2" step="0.1" /></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>Racks</h2>
+          <div class="field-grid two">
+            <label>Quantidade<input id="rack-count" type="number" min="0" step="1" /></label>
+            <label>Fileiras<input id="rack-rows" type="number" min="1" step="1" /></label>
+            <label>Largura (m)<input id="rack-width" type="number" min="0.3" step="0.05" /></label>
+            <label>Profundidade (m)<input id="rack-depth" type="number" min="0.4" step="0.05" /></label>
+            <label>Potência/rack (kW)<input id="rack-power" type="number" min="0" step="1" /></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>Fan walls</h2>
+          <div class="field-grid two">
+            <label>Quantidade<input id="fan-count" type="number" min="0" step="1" /></label>
+            <label>Parede
+              <select id="fan-wall">
+                <option value="north">Norte</option>
+                <option value="south">Sul</option>
+                <option value="east">Leste</option>
+                <option value="west">Oeste</option>
+              </select>
+            </label>
+            <label>Largura (m)<input id="fan-width" type="number" min="0.3" step="0.1" /></label>
+            <label>Vazão/unidade (m³/h)<input id="fan-airflow" type="number" min="0" step="100" /></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>Circulação</h2>
+          <div class="field-grid three">
+            <label>Corredor frio (m)<input id="cold-aisle" type="number" min="0.4" step="0.1" /></label>
+            <label>Corredor quente (m)<input id="hot-aisle" type="number" min="0.4" step="0.1" /></label>
+            <label>Perímetro (m)<input id="perimeter" type="number" min="0" step="0.1" /></label>
+          </div>
+        </section>
+
+        <div class="button-stack">
+          <button id="apply-settings">Aplicar parâmetros</button>
+          <button id="optimize-layout" class="secondary">Organizar automaticamente</button>
+        </div>
+      </aside>
+
+      <section class="canvas-column">
+        <div class="canvas-card">
+          <div class="canvas-heading">
+            <div>
+              <p class="eyebrow">Planta 2D</p>
+              <h2>Layout do data hall</h2>
+            </div>
+            <span>Arraste os elementos para ajustes manuais</span>
+          </div>
+          <svg id="layout-svg" role="img" aria-label="Planta do data hall"></svg>
+        </div>
+
+        <section class="voice-card">
+          <div class="voice-intro">
+            <div>
+              <p class="eyebrow">Copiloto de engenharia</p>
+              <h2>Pressione e segure para falar</h2>
+              <p id="voice-status" data-state="idle">O áudio será enviado automaticamente quando você soltar.</p>
+            </div>
+            <button id="push-to-talk" class="microphone" aria-label="Pressione e segure para falar">
+              <span class="mic-icon">●</span>
+              <span>Falar</span>
+            </button>
+          </div>
+
+          <div class="command-row">
+            <input id="command-input" type="text" placeholder="Ou digite: crie uma sala de 24 por 18 metros com 32 racks…" />
+            <button id="send-command">Enviar</button>
+          </div>
+
+          <div class="conversation-grid">
+            <article>
+              <h3>Transcrição</h3>
+              <p id="transcript">Nenhum comando enviado.</p>
+            </article>
+            <article>
+              <h3>Resposta da IA</h3>
+              <p id="assistant-message">Pronto para modelar.</p>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <aside class="panel insights-panel">
+        <section>
+          <h2>Indicadores</h2>
+          <div id="stats" class="stats"></div>
+        </section>
+
+        <section>
+          <h2>Validação</h2>
+          <ul id="warnings" class="warnings"></ul>
+        </section>
+
+        <section>
+          <h2>Elemento selecionado</h2>
+          <div id="selected-details" class="selected-details"></div>
+        </section>
+
+        <section>
+          <h2>Histórico de comandos</h2>
+          <ol id="command-history" class="command-history"></ol>
+        </section>
+      </aside>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
