@@ -89,3 +89,7 @@ Planta SVG + modelo JSON
 5. Criar visualização 3D a partir do mesmo modelo JSON.
 6. Exportar geometrias para preparação de CFD/OpenFOAM.
 7. Adicionar autenticação e armazenamento de projetos no backend.
+
+## Teste de escrita
+
+Verificacao de acesso de escrita no GitHub.
