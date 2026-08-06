@@ -7,6 +7,7 @@ import {
   applyCommands,
   autoArrange,
   calculateStats,
+  CURRENT_LAYOUT_RULES_VERSION,
   createDefaultProject,
   moveElement,
   normalizeProject,
@@ -449,7 +450,12 @@ function ModelElement(props: {
 function loadProject(): DataHallProject {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? normalizeProject(JSON.parse(raw)) : autoArrange(applyCommands(createDefaultProject(), [{ type: "add_racks", count: 24 }, { type: "add_fan_walls", count: 4 }]));
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<DataHallProject>;
+      const normalized = normalizeProject(parsed);
+      return parsed.layoutRulesVersion === CURRENT_LAYOUT_RULES_VERSION ? normalized : autoArrange(normalized);
+    }
+    return autoArrange(applyCommands(createDefaultProject(), [{ type: "add_racks", count: 24 }, { type: "add_fan_walls", count: 4 }]));
   } catch {
     return autoArrange(applyCommands(createDefaultProject(), [{ type: "add_racks", count: 24 }, { type: "add_fan_walls", count: 4 }]));
   }

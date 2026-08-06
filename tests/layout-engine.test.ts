@@ -66,6 +66,21 @@ describe("layoutEngine", () => {
     expect(racks[3].x - racks[2].x).toBeCloseTo(racks[2].widthM);
   });
 
+  it("mantem 23 racks em 2 fileiras sem vao lateral", () => {
+    const project = applyCommands(createDefaultProject(), [
+      { type: "add_racks", count: 23, widthM: 0.6 },
+      { type: "create_rack_rows", rows: 2 },
+      { type: "auto_arrange" }
+    ]);
+    const firstRow = project.elements
+      .filter((element) => element.type === "rack" && element.row === 1)
+      .sort((first, second) => first.x - second.x);
+
+    for (let index = 1; index < firstRow.length; index += 1) {
+      expect(firstRow[index].x - firstRow[index - 1].x).toBeCloseTo(firstRow[index - 1].widthM);
+    }
+  });
+
   it("detecta sobreposicao entre elementos", () => {
     const withRacks = applyCommands(createDefaultProject(), [{ type: "add_racks", count: 2 }]);
     const project = applyCommands(withRacks, [

@@ -67,6 +67,7 @@ export interface LayoutSettings {
 
 export interface DataHallProject {
   version: 2;
+  layoutRulesVersion: number;
   name: string;
   room: Room;
   rackDefaults: RackDefaults;

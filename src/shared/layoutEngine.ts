@@ -8,6 +8,8 @@ import type {
   Wall
 } from "./types.js";
 
+export const CURRENT_LAYOUT_RULES_VERSION = 2;
+
 const ROOM_LIMITS = {
   widthM: [3, 200],
   lengthM: [3, 300],
@@ -17,6 +19,7 @@ const ROOM_LIMITS = {
 export function createDefaultProject(): DataHallProject {
   return {
     version: 2,
+    layoutRulesVersion: CURRENT_LAYOUT_RULES_VERSION,
     name: "Novo Data Hall",
     room: { widthM: 18, lengthM: 24, heightM: 5 },
     rackDefaults: {
@@ -181,6 +184,7 @@ export function validateProject(project: DataHallProject): DataHallProject {
   const next = clone(project);
   const warnings: string[] = [];
 
+  next.layoutRulesVersion = CURRENT_LAYOUT_RULES_VERSION;
   next.room = resizeRoom(next.room, next.room);
   next.settings.rackRows = clampInt(next.settings.rackRows, 1, 100);
   next.settings.coldAisleM = clamp(next.settings.coldAisleM, 0.4, 10);
