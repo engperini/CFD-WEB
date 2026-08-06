@@ -202,6 +202,12 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
+  function deleteSelectedElement() {
+    if (!selected) return;
+    commit(applyCommands(project, [{ type: "delete_element", id: selected.id }]), `${selected.label} deletado.`);
+    setSelectedId("");
+  }
+
   function loadJson(file: File | undefined) {
     if (!file) return;
     file
@@ -343,7 +349,16 @@ function App() {
             {project.warnings.length ? project.warnings.map((warning) => <li key={warning}>{warning}</li>) : <li>Nenhum alerta.</li>}
           </ul>
           <h3>Selecionado</h3>
-          <div className="selected">{selected ? `${selected.label}: X ${format(selected.x)} m, Y ${format(selected.y)} m, ${format(selected.widthM)} x ${format(selected.depthM)} x ${format(selected.heightM)} m` : "Selecione um elemento."}</div>
+          <div className="selected">
+            {selected ? (
+              <>
+                <p>{`${selected.label}: X ${format(selected.x)} m, Y ${format(selected.y)} m, ${format(selected.widthM)} x ${format(selected.depthM)} x ${format(selected.heightM)} m`}</p>
+                <button type="button" className="danger" onClick={deleteSelectedElement}>Deletar equipamento</button>
+              </>
+            ) : (
+              "Selecione um elemento."
+            )}
+          </div>
           <h3>Historico</h3>
           <ol className="history">
             {history.map((item, index) => <li key={`${item.text}-${index}`}><strong>{item.text}</strong><span>{item.commands.map((command) => command.type).join(", ")}</span></li>)}

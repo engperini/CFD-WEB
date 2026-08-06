@@ -72,4 +72,13 @@ describe("layoutEngine", () => {
 
     expect(project.elements.filter((element) => element.type === "rack")).toHaveLength(4);
   });
+
+  it("deleta um equipamento por id", () => {
+    const project = applyCommands(createDefaultProject(), [
+      { type: "add_racks", count: 2 },
+      { type: "delete_element", id: "rack-1" }
+    ]);
+
+    expect(project.elements.map((element) => element.id)).toEqual(["rack-2"]);
+  });
 });

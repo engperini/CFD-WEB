@@ -42,6 +42,10 @@ button:disabled {
   opacity: 0.45;
 }
 
+button.danger {
+  background: #b83232;
+}
+
 h1,
 h2,
 h3,
@@ -335,9 +339,15 @@ select:focus {
 }
 
 .selected {
+  display: grid;
+  gap: 10px;
   margin-bottom: 16px;
   color: #50606d;
   line-height: 1.45;
+}
+
+.selected p {
+  margin: 0;
 }
 
 .history {
