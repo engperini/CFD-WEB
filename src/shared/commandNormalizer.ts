@@ -22,6 +22,17 @@ const TYPE_ALIASES: Record<string, StructuredCommand["type"]> = {
   configure_fan_walls: "add_fan_walls",
   set_fan_walls: "add_fan_walls",
   fan_walls: "add_fan_walls",
+  pillar: "add_pillars",
+  pillars: "add_pillars",
+  pilar: "add_pillars",
+  pilares: "add_pillars",
+  add_pillar: "add_pillars",
+  add_columns: "add_pillars",
+  create_pillars: "add_pillars",
+  concrete_pillars: "add_pillars",
+  create_pillar_grid: "create_pillar_grid",
+  pillar_grid: "create_pillar_grid",
+  distribute_pillars: "create_pillar_grid",
   set_aisles: "set_aisle_width",
   configure_aisles: "set_aisle_width",
   set_aisle_widths: "set_aisle_width",
@@ -42,6 +53,8 @@ const ALLOWED_TYPES = new Set<StructuredCommand["type"]>([
   "add_racks",
   "create_rack_rows",
   "add_fan_walls",
+  "add_pillars",
+  "create_pillar_grid",
   "move_element",
   "rotate_element",
   "set_aisle_width",
@@ -81,6 +94,7 @@ function normalizeCommand(candidate: unknown, project?: ProjectContext): unknown
   copyNumber(input, command, "z", ["z"]);
   copyNumber(input, command, "rotation", ["rotation", "rotacao"]);
   copyInteger(input, command, "rows", ["rows", "rowCount", "rackRows", "fileiras", "quantidadeFileiras"]);
+  copyInteger(input, command, "columns", ["columns", "columnCount", "pillarColumns", "colunas", "quantidadeColunas"]);
   copyInteger(input, command, "count", ["count", "quantity", "quantidade", "rackCount", "rack_count", "fanWallCount"]);
 
   const rows = readNumber(input, ["rows", "rowCount", "rackRows", "fileiras", "quantidadeFileiras"]) ?? readContextRows(project);
@@ -185,7 +199,19 @@ function normalizeOrientation(value: string) {
 
 function normalizeTarget(value: string) {
   const key = normalizeKey(value);
-  return ({ all: "all", tudo: "all", racks: "racks", rack: "racks", fanwalls: "fanWalls", fan_walls: "fanWalls", fanwall: "fanWalls" } as const)[key];
+  return ({
+    all: "all",
+    tudo: "all",
+    racks: "racks",
+    rack: "racks",
+    fanwalls: "fanWalls",
+    fan_walls: "fanWalls",
+    fanwall: "fanWalls",
+    pillars: "pillars",
+    pillar: "pillars",
+    pilares: "pillars",
+    pilar: "pillars"
+  } as const)[key];
 }
 
 function normalizeKey(value: string): string {

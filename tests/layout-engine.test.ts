@@ -125,12 +125,42 @@ describe("layoutEngine", () => {
     expect(project.elements.filter((element) => element.type === "fanWall")).toHaveLength(2);
   });
 
+  it("cria pilares retangulares em malha automatica", () => {
+    const project = applyCommands(createDefaultProject(), [
+      { type: "create_pillar_grid", count: 6, columns: 3, widthM: 0.5, depthM: 0.7, heightM: 5 },
+      { type: "auto_arrange" }
+    ]);
+    const pillars = project.elements.filter((element) => element.type === "pillar");
+
+    expect(pillars).toHaveLength(6);
+    expect(pillars[0]).toMatchObject({ widthM: 0.5, depthM: 0.7, heightM: 5 });
+    expect(calculateStats(project).pillarCount).toBe(6);
+  });
+
+  it("reduz pilares ao recriar a malha", () => {
+    const project = applyCommands(createDefaultProject(), [
+      { type: "create_pillar_grid", count: 8, columns: 4 },
+      { type: "create_pillar_grid", count: 3, columns: 3 },
+      { type: "auto_arrange" }
+    ]);
+
+    expect(project.elements.filter((element) => element.type === "pillar")).toHaveLength(3);
+  });
+
   it("normaliza resposta da IA com aliases e valores com unidade", () => {
     const commands = normalizeAiCommands([
       { type: "configure_racks", quantidade: "24 racks", potencia: "30kW" }
     ]);
 
     expect(commands).toEqual([{ type: "add_racks", count: 24, powerKw: 30 }]);
+  });
+
+  it("normaliza aliases de pilares da IA", () => {
+    const commands = normalizeAiCommands([
+      { type: "pilares", quantidade: "6", colunas: "3", largura: "0,5 m", profundidade: "0,7 m", altura: "5 m" }
+    ]);
+
+    expect(commands).toEqual([{ type: "add_pillars", count: 6, columns: 3, widthM: 0.5, depthM: 0.7, heightM: 5 }]);
   });
 
   it("interpreta racks por fileira a partir do texto do usuario", () => {

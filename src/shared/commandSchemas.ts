@@ -46,6 +46,24 @@ export const structuredCommandSchema = z.discriminatedUnion("type", [
     orientation: orientationSchema.optional()
   }),
   z.object({
+    type: z.literal("add_pillars"),
+    count: z.number().int().nonnegative().optional(),
+    columns: z.number().int().positive().optional(),
+    widthM: positiveNumber.optional(),
+    depthM: positiveNumber.optional(),
+    heightM: positiveNumber.optional(),
+    orientation: orientationSchema.optional()
+  }),
+  z.object({
+    type: z.literal("create_pillar_grid"),
+    count: z.number().int().nonnegative().optional(),
+    columns: z.number().int().positive().optional(),
+    widthM: positiveNumber.optional(),
+    depthM: positiveNumber.optional(),
+    heightM: positiveNumber.optional(),
+    orientation: orientationSchema.optional()
+  }),
+  z.object({
     type: z.literal("move_element"),
     id: z.string().min(1).optional(),
     x: nonNegativeNumber.optional(),
@@ -74,7 +92,7 @@ export const structuredCommandSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("clear_layout"),
-    target: z.enum(["all", "racks", "fanWalls"]).optional()
+    target: z.enum(["all", "racks", "fanWalls", "pillars"]).optional()
   }),
   z.object({ type: z.literal("undo") }),
   z.object({ type: z.literal("redo") })

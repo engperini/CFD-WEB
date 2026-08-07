@@ -37,6 +37,37 @@ export function createDefaultProject(): DataHallProject {
       orientation: "south",
       wall: "north"
     },
+    pillarDefaults: {
+      count: 0,
+      columns: 3,
+      widthM: 0.45,
+      depthM: 0.45,
+      heightM: 5,
+      orientation: "north"
+    },
+    architecture: {
+      raisedFloor: {
+        enabled: false,
+        visible: true,
+        opacity: 0.32,
+        tileWidthM: 0.6,
+        tileDepthM: 0.6,
+        heightM: 0.6
+      },
+      ceiling: {
+        enabled: false,
+        visible: true,
+        opacity: 0.28,
+        panelWidthM: 1.2,
+        panelDepthM: 0.6,
+        heightM: 4.6
+      }
+    },
+    visibility: {
+      racks: { visible: true, opacity: 1 },
+      fanWalls: { visible: true, opacity: 1 },
+      pillars: { visible: true, opacity: 1 }
+    },
     settings: {
       rackRows: 4,
       coldAisleM: 1.2,
@@ -58,6 +89,16 @@ export function normalizeProject(candidate: unknown): DataHallProject {
     room: { ...base.room, ...value.room },
     rackDefaults: { ...base.rackDefaults, ...value.rackDefaults },
     fanWallDefaults: { ...base.fanWallDefaults, ...value.fanWallDefaults },
+    pillarDefaults: { ...base.pillarDefaults, ...value.pillarDefaults },
+    architecture: {
+      raisedFloor: { ...base.architecture.raisedFloor, ...value.architecture?.raisedFloor },
+      ceiling: { ...base.architecture.ceiling, ...value.architecture?.ceiling }
+    },
+    visibility: {
+      racks: { ...base.visibility.racks, ...value.visibility?.racks },
+      fanWalls: { ...base.visibility.fanWalls, ...value.visibility?.fanWalls },
+      pillars: { ...base.visibility.pillars, ...value.visibility?.pillars }
+    },
     settings: { ...base.settings, ...value.settings },
     elements: Array.isArray(value.elements) ? value.elements.map(normalizeElement).filter(isElement) : [],
     warnings: Array.isArray(value.warnings) ? value.warnings.map(String) : []
@@ -102,6 +143,26 @@ export function applyCommands(project: DataHallProject, commands: StructuredComm
         next.elements.push(...createFanWalls(next, command.count ?? 1));
         shouldArrange = true;
         break;
+      case "add_pillars":
+        updatePillarDefaults(next, command);
+        next.elements.push(...createPillars(next, command.count ?? 1));
+        shouldArrange = true;
+        break;
+      case "create_pillar_grid":
+        updatePillarDefaults(next, command);
+        if (isFiniteNumber(command.count)) next.pillarDefaults.count = clampInt(command.count, 0, 400);
+        if (isPositive(command.columns)) next.pillarDefaults.columns = clampInt(command.columns, 1, 50);
+        {
+          const pillars = next.elements.filter((element) => element.type === "pillar");
+          const targetCount = next.pillarDefaults.count;
+          const desiredPillars =
+            targetCount > pillars.length
+              ? [...pillars, ...createPillars(next, targetCount - pillars.length)]
+              : pillars.slice(0, targetCount);
+          next.elements = [...next.elements.filter((element) => element.type !== "pillar"), ...desiredPillars];
+        }
+        shouldArrange = true;
+        break;
       case "move_element":
         if (command.id && isFiniteNumber(command.x) && isFiniteNumber(command.y)) {
           next = moveElement(next, command.id, command.x, command.y, command.z);
@@ -131,6 +192,8 @@ export function applyCommands(project: DataHallProject, commands: StructuredComm
             ? next.elements.filter((element) => element.type !== "rack")
             : command.target === "fanWalls"
               ? next.elements.filter((element) => element.type !== "fanWall")
+              : command.target === "pillars"
+                ? next.elements.filter((element) => element.type !== "pillar")
               : [];
         break;
     }
@@ -143,10 +206,12 @@ export function autoArrange(project: DataHallProject): DataHallProject {
   const next = clone(project);
   const racks = next.elements.filter((element) => element.type === "rack");
   const fanWalls = next.elements.filter((element) => element.type === "fanWall");
+  const pillars = next.elements.filter((element) => element.type === "pillar");
   const arranged: DataHallElement[] = [];
 
   arranged.push(...arrangeRackRows(next, racks));
   arranged.push(...arrangeFanWalls(next, fanWalls));
+  arranged.push(...arrangePillars(next, pillars));
 
   next.elements = arranged;
   return validateProject(next);
@@ -190,6 +255,19 @@ export function validateProject(project: DataHallProject): DataHallProject {
   next.settings.coldAisleM = clamp(next.settings.coldAisleM, 0.4, 10);
   next.settings.hotAisleM = clamp(next.settings.hotAisleM, 0.4, 10);
   next.settings.wallClearanceM = clamp(next.settings.wallClearanceM, 0, 10);
+  next.pillarDefaults.count = clampInt(next.pillarDefaults.count, 0, 400);
+  next.pillarDefaults.columns = clampInt(next.pillarDefaults.columns, 1, 50);
+  next.architecture.raisedFloor.opacity = clamp(next.architecture.raisedFloor.opacity, 0, 1);
+  next.architecture.raisedFloor.tileWidthM = clamp(next.architecture.raisedFloor.tileWidthM, 0.3, 2.4);
+  next.architecture.raisedFloor.tileDepthM = clamp(next.architecture.raisedFloor.tileDepthM, 0.3, 2.4);
+  next.architecture.raisedFloor.heightM = clamp(next.architecture.raisedFloor.heightM, 0.05, 2);
+  next.architecture.ceiling.opacity = clamp(next.architecture.ceiling.opacity, 0, 1);
+  next.architecture.ceiling.panelWidthM = clamp(next.architecture.ceiling.panelWidthM, 0.3, 3);
+  next.architecture.ceiling.panelDepthM = clamp(next.architecture.ceiling.panelDepthM, 0.3, 3);
+  next.architecture.ceiling.heightM = clamp(next.architecture.ceiling.heightM, 2, next.room.heightM);
+  next.visibility.racks.opacity = clamp(next.visibility.racks.opacity, 0, 1);
+  next.visibility.fanWalls.opacity = clamp(next.visibility.fanWalls.opacity, 0, 1);
+  next.visibility.pillars.opacity = clamp(next.visibility.pillars.opacity, 0, 1);
   next.elements = next.elements.map((element) => clampElementToRoom(element, next.room));
 
   for (const element of next.elements) {
@@ -218,6 +296,7 @@ export function validateProject(project: DataHallProject): DataHallProject {
 export function calculateStats(project: DataHallProject): LayoutStats {
   const racks = project.elements.filter((element) => element.type === "rack");
   const fanWalls = project.elements.filter((element) => element.type === "fanWall");
+  const pillars = project.elements.filter((element) => element.type === "pillar");
   const roomAreaM2 = project.room.widthM * project.room.lengthM;
   const occupiedAreaM2 = project.elements.reduce((sum, element) => sum + element.widthM * element.depthM, 0);
   const totalPowerKw = racks.reduce((sum, rack) => sum + (rack.powerKw ?? 0), 0);
@@ -225,6 +304,7 @@ export function calculateStats(project: DataHallProject): LayoutStats {
   return {
     rackCount: racks.length,
     fanWallCount: fanWalls.length,
+    pillarCount: pillars.length,
     totalPowerKw,
     totalAirflowM3h: fanWalls.reduce((sum, fanWall) => sum + (fanWall.airflowM3h ?? 0), 0),
     roomAreaM2,
@@ -322,6 +402,36 @@ function arrangeFanWalls(project: DataHallProject, fanWalls: DataHallElement[]):
   });
 }
 
+function arrangePillars(project: DataHallProject, pillars: DataHallElement[]): DataHallElement[] {
+  if (pillars.length === 0) return [];
+  const columns = Math.min(project.pillarDefaults.columns, pillars.length);
+  const rows = Math.ceil(pillars.length / columns);
+  const usableWidth = Math.max(0, project.room.widthM - project.settings.wallClearanceM * 2 - project.pillarDefaults.widthM);
+  const usableLength = Math.max(0, project.room.lengthM - project.settings.wallClearanceM * 2 - project.pillarDefaults.depthM);
+  const xStep = columns > 1 ? usableWidth / (columns - 1) : 0;
+  const yStep = rows > 1 ? usableLength / (rows - 1) : 0;
+
+  return pillars.map((source, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    return clampElementToRoom(
+      {
+        ...source,
+        label: source.label || `P${index + 1}`,
+        x: round(project.settings.wallClearanceM + column * xStep),
+        y: round(project.settings.wallClearanceM + row * yStep),
+        z: 0,
+        widthM: project.pillarDefaults.widthM,
+        depthM: project.pillarDefaults.depthM,
+        heightM: project.pillarDefaults.heightM,
+        rotation: orientationToRotation(project.pillarDefaults.orientation),
+        orientation: project.pillarDefaults.orientation
+      },
+      project.room
+    );
+  });
+}
+
 function createRacks(project: DataHallProject, count: number): DataHallElement[] {
   const start = nextIndex(project.elements, "rack");
   return Array.from({ length: clampInt(count, 0, 2000) }, (_, index) => ({
@@ -359,6 +469,23 @@ function createFanWalls(project: DataHallProject, count: number): DataHallElemen
   }));
 }
 
+function createPillars(project: DataHallProject, count: number): DataHallElement[] {
+  const start = nextIndex(project.elements, "pillar");
+  return Array.from({ length: clampInt(count, 0, 400) }, (_, index) => ({
+    id: `pillar-${start + index}`,
+    type: "pillar",
+    label: `P${start + index}`,
+    x: 0,
+    y: 0,
+    z: 0,
+    widthM: project.pillarDefaults.widthM,
+    depthM: project.pillarDefaults.depthM,
+    heightM: project.pillarDefaults.heightM,
+    rotation: orientationToRotation(project.pillarDefaults.orientation),
+    orientation: project.pillarDefaults.orientation
+  }));
+}
+
 function updateRackDefaults(project: DataHallProject, command: Extract<StructuredCommand, { type: "add_racks" }>) {
   if (isPositive(command.widthM)) project.rackDefaults.widthM = clamp(command.widthM, 0.3, 3);
   if (isPositive(command.depthM)) project.rackDefaults.depthM = clamp(command.depthM, 0.4, 4);
@@ -374,6 +501,18 @@ function updateFanWallDefaults(project: DataHallProject, command: Extract<Struct
   if (isFiniteNumber(command.airflowM3h)) project.fanWallDefaults.airflowM3h = clamp(command.airflowM3h, 0, 500000);
   if (command.wall) project.fanWallDefaults.wall = command.wall;
   if (command.orientation) project.fanWallDefaults.orientation = command.orientation;
+}
+
+function updatePillarDefaults(
+  project: DataHallProject,
+  command: Extract<StructuredCommand, { type: "add_pillars" | "create_pillar_grid" }>
+) {
+  if (isFiniteNumber(command.count)) project.pillarDefaults.count = clampInt(command.count, 0, 400);
+  if (isPositive(command.columns)) project.pillarDefaults.columns = clampInt(command.columns, 1, 50);
+  if (isPositive(command.widthM)) project.pillarDefaults.widthM = clamp(command.widthM, 0.1, 5);
+  if (isPositive(command.depthM)) project.pillarDefaults.depthM = clamp(command.depthM, 0.1, 5);
+  if (isPositive(command.heightM)) project.pillarDefaults.heightM = clamp(command.heightM, 0.5, 30);
+  if (command.orientation) project.pillarDefaults.orientation = command.orientation;
 }
 
 function resizeRoom(room: Room, candidate: Partial<Room>): Room {
@@ -405,7 +544,7 @@ function isAtRoomLimit(element: DataHallElement, room: Room): boolean {
 function normalizeElement(element: unknown): DataHallElement | null {
   if (!element || typeof element !== "object") return null;
   const value = element as DataHallElement;
-  if (value.type !== "rack" && value.type !== "fanWall") return null;
+  if (value.type !== "rack" && value.type !== "fanWall" && value.type !== "pillar") return null;
   return {
     ...value,
     id: String(value.id || `${value.type}-${cryptoSafeId()}`),

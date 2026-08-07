@@ -125,10 +125,42 @@ function App() {
       ...(desiredFanWallCount < currentFanWallCount
         ? ([{ type: "clear_layout", target: "fanWalls" }, fanWallCommand] as StructuredCommand[])
         : [fanWallCommand]),
+      {
+        type: "create_pillar_grid",
+        count: numberFrom(form, "pillarCount"),
+        columns: numberFrom(form, "pillarColumns"),
+        widthM: numberFrom(form, "pillarWidth"),
+        depthM: numberFrom(form, "pillarDepth"),
+        heightM: numberFrom(form, "pillarHeight")
+      },
       { type: "set_wall_clearance", wallClearanceM: numberFrom(form, "wallClearance") },
       { type: "auto_arrange" }
     ];
-    commit(applyCommands(project, commands), "Parametros aplicados e layout organizado.");
+    const next = applyCommands(project, commands);
+    next.architecture = {
+      raisedFloor: {
+        enabled: boolFrom(form, "raisedFloorEnabled"),
+        visible: boolFrom(form, "raisedFloorVisible"),
+        opacity: numberFrom(form, "raisedFloorOpacity"),
+        tileWidthM: numberFrom(form, "raisedFloorTileWidth"),
+        tileDepthM: numberFrom(form, "raisedFloorTileDepth"),
+        heightM: numberFrom(form, "raisedFloorHeight")
+      },
+      ceiling: {
+        enabled: boolFrom(form, "ceilingEnabled"),
+        visible: boolFrom(form, "ceilingVisible"),
+        opacity: numberFrom(form, "ceilingOpacity"),
+        panelWidthM: numberFrom(form, "ceilingPanelWidth"),
+        panelDepthM: numberFrom(form, "ceilingPanelDepth"),
+        heightM: numberFrom(form, "ceilingHeight")
+      }
+    };
+    next.visibility = {
+      racks: { visible: boolFrom(form, "racksVisible"), opacity: numberFrom(form, "racksOpacity") },
+      fanWalls: { visible: boolFrom(form, "fanWallsVisible"), opacity: numberFrom(form, "fanWallsOpacity") },
+      pillars: { visible: boolFrom(form, "pillarsVisible"), opacity: numberFrom(form, "pillarsOpacity") }
+    };
+    commit(next, "Parametros aplicados e layout organizado.");
   }
 
   async function submitTextCommand(text = textCommand, source: "text" | "voice" = "text") {
@@ -310,6 +342,37 @@ function App() {
             <NumberInput name="fanHeight" label="Altura" value={project.fanWallDefaults.heightM} min={0.5} />
             <NumberInput name="fanAirflow" label="Vazao m3/h" value={project.fanWallDefaults.airflowM3h} min={0} step={100} />
           </Fieldset>
+          <Fieldset title="Pilares">
+            <NumberInput name="pillarCount" label="Quantidade" value={stats.pillarCount} min={0} step={1} />
+            <NumberInput name="pillarColumns" label="Colunas na malha" value={project.pillarDefaults.columns} min={1} step={1} />
+            <NumberInput name="pillarWidth" label="Largura" value={project.pillarDefaults.widthM} min={0.1} />
+            <NumberInput name="pillarDepth" label="Profundidade" value={project.pillarDefaults.depthM} min={0.1} />
+            <NumberInput name="pillarHeight" label="Altura" value={project.pillarDefaults.heightM} min={0.5} />
+          </Fieldset>
+          <Fieldset title="Piso elevado">
+            <CheckInput name="raisedFloorEnabled" label="Adicionar piso" checked={project.architecture.raisedFloor.enabled} />
+            <CheckInput name="raisedFloorVisible" label="Mostrar piso" checked={project.architecture.raisedFloor.visible} />
+            <NumberInput name="raisedFloorTileWidth" label="Placa largura" value={project.architecture.raisedFloor.tileWidthM} min={0.3} />
+            <NumberInput name="raisedFloorTileDepth" label="Placa profund." value={project.architecture.raisedFloor.tileDepthM} min={0.3} />
+            <NumberInput name="raisedFloorHeight" label="Altura piso" value={project.architecture.raisedFloor.heightM} min={0.05} />
+            <NumberInput name="raisedFloorOpacity" label="Opacidade" value={project.architecture.raisedFloor.opacity} min={0} max={1} step={0.05} />
+          </Fieldset>
+          <Fieldset title="Forro sala limpa">
+            <CheckInput name="ceilingEnabled" label="Adicionar forro" checked={project.architecture.ceiling.enabled} />
+            <CheckInput name="ceilingVisible" label="Mostrar forro" checked={project.architecture.ceiling.visible} />
+            <NumberInput name="ceilingPanelWidth" label="Modulo largura" value={project.architecture.ceiling.panelWidthM} min={0.3} />
+            <NumberInput name="ceilingPanelDepth" label="Modulo profund." value={project.architecture.ceiling.panelDepthM} min={0.3} />
+            <NumberInput name="ceilingHeight" label="Altura forro" value={project.architecture.ceiling.heightM} min={2} />
+            <NumberInput name="ceilingOpacity" label="Opacidade" value={project.architecture.ceiling.opacity} min={0} max={1} step={0.05} />
+          </Fieldset>
+          <Fieldset title="Visibilidade">
+            <CheckInput name="racksVisible" label="Mostrar racks" checked={project.visibility.racks.visible} />
+            <NumberInput name="racksOpacity" label="Opacidade racks" value={project.visibility.racks.opacity} min={0} max={1} step={0.05} />
+            <CheckInput name="fanWallsVisible" label="Mostrar fan walls" checked={project.visibility.fanWalls.visible} />
+            <NumberInput name="fanWallsOpacity" label="Opacidade fan walls" value={project.visibility.fanWalls.opacity} min={0} max={1} step={0.05} />
+            <CheckInput name="pillarsVisible" label="Mostrar pilares" checked={project.visibility.pillars.visible} />
+            <NumberInput name="pillarsOpacity" label="Opacidade pilares" value={project.visibility.pillars.opacity} min={0} max={1} step={0.05} />
+          </Fieldset>
           <Fieldset title="Corredores">
             <NumberInput name="coldAisle" label="Frio (m)" value={project.settings.coldAisleM} min={0.4} />
             <NumberInput name="hotAisle" label="Quente (m)" value={project.settings.hotAisleM} min={0.4} />
@@ -342,11 +405,13 @@ function App() {
                     onClick={(event) => setSectionFromStagePoint(event.target.getStage()!)}
                     onTap={(event) => setSectionFromStagePoint(event.target.getStage()!)}
                   />
-                  {project.elements.map((element) => (
+                  <ArchitecturalPlanLayers project={project} scale={scale} offset={offset} />
+                  {project.elements.filter((element) => visibilityForElement(project, element).visible).map((element) => (
                     <ModelElement
                       key={element.id}
                       element={element}
                       selected={element.id === selectedId}
+                      opacity={visibilityForElement(project, element).opacity}
                       scale={scale}
                       offset={offset}
                       onSelect={() => setSelectedId(element.id)}
@@ -376,7 +441,12 @@ function App() {
                   <button type="button" className={sectionCut.axis === "y" ? "active" : ""} onClick={() => updateSectionAxis("y")}>Transversal</button>
                 </div>
               </div>
-              <SectionView project={project} cut={sectionCut} elements={sectionElements} size={sectionSize} />
+              <SectionView
+                project={project}
+                cut={sectionCut}
+                elements={sectionElements.filter((element) => visibilityForElement(project, element).visible)}
+                size={sectionSize}
+              />
             </div>
           </section>
           <section className="voice-panel">
@@ -407,6 +477,7 @@ function App() {
           <h2>Indicadores</h2>
           <Metric label="Racks" value={stats.rackCount} />
           <Metric label="Fan walls" value={stats.fanWallCount} />
+          <Metric label="Pilares" value={stats.pillarCount} />
           <Metric label="Potencia total" value={`${format(stats.totalPowerKw, 0)} kW`} />
           <Metric label="Area ocupada" value={`${format(stats.occupiedAreaM2)} m2`} />
           <Metric label="Ocupacao" value={`${format(stats.occupiedPercent)}%`} />
@@ -445,8 +516,26 @@ function Fieldset({ title, children }: { title: string; children: React.ReactNod
   return <fieldset><legend>{title}</legend><div className="field-grid">{children}</div></fieldset>;
 }
 
-function NumberInput({ name, label, value, min, step = 0.1 }: { name: string; label: string; value: number; min: number; step?: number }) {
-  return <label>{label}<input name={name} type="number" min={min} step={step} defaultValue={value} /></label>;
+function NumberInput({
+  name,
+  label,
+  value,
+  min,
+  max,
+  step = 0.1
+}: {
+  name: string;
+  label: string;
+  value: number;
+  min: number;
+  max?: number;
+  step?: number;
+}) {
+  return <label>{label}<input name={name} type="number" min={min} max={max} step={step} defaultValue={value} /></label>;
+}
+
+function CheckInput({ name, label, checked }: { name: string; label: string; checked: boolean }) {
+  return <label className="check-field"><input name={name} type="checkbox" defaultChecked={checked} />{label}</label>;
 }
 
 function SelectInput({ name, label, value }: { name: string; label: string; value: Wall }) {
@@ -455,6 +544,79 @@ function SelectInput({ name, label, value }: { name: string; label: string; valu
 
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function ArchitecturalPlanLayers({ project, scale, offset }: { project: DataHallProject; scale: number; offset: { x: number; y: number } }) {
+  const layers = [];
+  if (project.architecture.raisedFloor.enabled && project.architecture.raisedFloor.visible) {
+    layers.push(
+      <GridOverlay
+        key="raised-floor"
+        room={project.room}
+        scale={scale}
+        offset={offset}
+        stepX={project.architecture.raisedFloor.tileWidthM}
+        stepY={project.architecture.raisedFloor.tileDepthM}
+        stroke="#8aa0ae"
+        opacity={project.architecture.raisedFloor.opacity}
+      />
+    );
+  }
+  if (project.architecture.ceiling.enabled && project.architecture.ceiling.visible) {
+    layers.push(
+      <GridOverlay
+        key="ceiling"
+        room={project.room}
+        scale={scale}
+        offset={offset}
+        stepX={project.architecture.ceiling.panelWidthM}
+        stepY={project.architecture.ceiling.panelDepthM}
+        stroke="#a36d2f"
+        opacity={project.architecture.ceiling.opacity}
+        dash={[8, 5]}
+      />
+    );
+  }
+  return <>{layers}</>;
+}
+
+function GridOverlay(props: {
+  room: DataHallProject["room"];
+  scale: number;
+  offset: { x: number; y: number };
+  stepX: number;
+  stepY: number;
+  stroke: string;
+  opacity: number;
+  dash?: number[];
+}) {
+  const { room, scale, offset, stepX, stepY, stroke, opacity, dash } = props;
+  const lines = [];
+  for (let x = stepX; x < room.widthM; x += stepX) {
+    lines.push(
+      <Line
+        key={`x-${x}`}
+        points={[offset.x + x * scale, offset.y, offset.x + x * scale, offset.y + room.lengthM * scale]}
+        stroke={stroke}
+        opacity={opacity}
+        strokeWidth={1}
+        dash={dash}
+      />
+    );
+  }
+  for (let y = stepY; y < room.lengthM; y += stepY) {
+    lines.push(
+      <Line
+        key={`y-${y}`}
+        points={[offset.x, offset.y + y * scale, offset.x + room.widthM * scale, offset.y + y * scale]}
+        stroke={stroke}
+        opacity={opacity}
+        strokeWidth={1}
+        dash={dash}
+      />
+    );
+  }
+  return <>{lines}</>;
 }
 
 function SectionCutLine(props: {
@@ -564,22 +726,25 @@ function SectionView(props: {
           const y = floorY - element.heightM * sectionScale;
           const width = Math.max(2, horizontalSize * sectionScale);
           const height = Math.max(2, element.heightM * sectionScale);
+          const visibility = visibilityForElement(project, element);
+          const colors = elementColors(element);
           return (
-            <Group key={element.id}>
+            <Group key={element.id} opacity={visibility.opacity}>
               <Rect
                 x={x}
                 y={y}
                 width={width}
                 height={height}
-                fill={element.type === "rack" ? "#d8e7ff" : "#d9f3ef"}
-                stroke={element.type === "rack" ? "#1f6feb" : "#0c8f7b"}
+                fill={colors.sectionFill}
+                stroke={colors.stroke}
                 strokeWidth={2}
               />
-              <HatchLines x={x} y={y} width={width} height={height} stroke={element.type === "rack" ? "#1f6feb" : "#0c8f7b"} />
+              <HatchLines x={x} y={y} width={width} height={height} stroke={colors.stroke} />
               <Text text={element.label} x={x - 12} y={y - 18} width={width + 24} align="center" fill="#10202f" fontStyle="bold" fontSize={12} />
             </Group>
           );
         })}
+        <ArchitectureSectionLayers project={project} origin={origin} floorY={floorY} sectionScale={sectionScale} horizontalM={horizontalM} />
         <Line
           points={[origin.x, floorY + 22, origin.x + horizontalM * sectionScale, floorY + 22]}
           stroke="#50606d"
@@ -646,18 +811,20 @@ function Grid({ room, scale, offset }: { room: DataHallProject["room"]; scale: n
 function ModelElement(props: {
   element: DataHallElement;
   selected: boolean;
+  opacity: number;
   scale: number;
   offset: { x: number; y: number };
   onSelect: () => void;
   onDragEnd: (element: DataHallElement, x: number, y: number) => void;
   onRotate: () => void;
 }) {
-  const { element, selected, scale, offset, onSelect, onDragEnd, onRotate } = props;
-  const fill = element.type === "rack" ? "#1f6feb" : "#0c8f7b";
+  const { element, selected, opacity, scale, offset, onSelect, onDragEnd, onRotate } = props;
+  const colors = elementColors(element);
   return (
     <Group
       x={offset.x + element.x * scale}
       y={offset.y + element.y * scale}
+      opacity={opacity}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -668,8 +835,8 @@ function ModelElement(props: {
       <Rect
         width={element.widthM * scale}
         height={element.depthM * scale}
-        fill={fill}
-        stroke={selected ? "#f0b429" : "#0d1b2a"}
+        fill={colors.fill}
+        stroke={selected ? "#f0b429" : colors.stroke}
         strokeWidth={selected ? 4 : 1.5}
         cornerRadius={2}
       />
@@ -706,6 +873,63 @@ function numberFrom(form: FormData, key: string): number {
   return Number(form.get(key));
 }
 
+function ArchitectureSectionLayers(props: {
+  project: DataHallProject;
+  origin: { x: number; y: number };
+  floorY: number;
+  sectionScale: number;
+  horizontalM: number;
+}) {
+  const { project, origin, floorY, sectionScale, horizontalM } = props;
+  return (
+    <>
+      {project.architecture.raisedFloor.enabled && project.architecture.raisedFloor.visible ? (
+        <Group opacity={project.architecture.raisedFloor.opacity}>
+          <Rect
+            x={origin.x}
+            y={floorY - project.architecture.raisedFloor.heightM * sectionScale}
+            width={horizontalM * sectionScale}
+            height={project.architecture.raisedFloor.heightM * sectionScale}
+            fill="#cbd6de"
+            stroke="#6c7f8d"
+            strokeWidth={1.5}
+          />
+        </Group>
+      ) : null}
+      {project.architecture.ceiling.enabled && project.architecture.ceiling.visible ? (
+        <Line
+          points={[
+            origin.x,
+            floorY - project.architecture.ceiling.heightM * sectionScale,
+            origin.x + horizontalM * sectionScale,
+            floorY - project.architecture.ceiling.heightM * sectionScale
+          ]}
+          stroke="#a36d2f"
+          strokeWidth={4}
+          opacity={project.architecture.ceiling.opacity}
+          dash={[12, 6]}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function visibilityForElement(project: DataHallProject, element: DataHallElement) {
+  if (element.type === "rack") return project.visibility.racks;
+  if (element.type === "fanWall") return project.visibility.fanWalls;
+  return project.visibility.pillars;
+}
+
+function elementColors(element: DataHallElement) {
+  if (element.type === "rack") return { fill: "#1f6feb", sectionFill: "#d8e7ff", stroke: "#1f6feb" };
+  if (element.type === "fanWall") return { fill: "#0c8f7b", sectionFill: "#d9f3ef", stroke: "#0c8f7b" };
+  return { fill: "#8a8f98", sectionFill: "#d8dadd", stroke: "#4b5563" };
+}
+
+function boolFrom(form: FormData, key: string): boolean {
+  return form.get(key) === "on";
+}
+
 function voiceLabel(state: RecorderState) {
   return {
     idle: "Pressione e mantenha o microfone para gravar.",
@@ -723,6 +947,9 @@ function projectForAi(project: DataHallProject) {
     room: project.room,
     rackDefaults: project.rackDefaults,
     fanWallDefaults: project.fanWallDefaults,
+    pillarDefaults: project.pillarDefaults,
+    architecture: project.architecture,
+    visibility: project.visibility,
     settings: project.settings,
     elements: project.elements.map(({ id, type, label, x, y, z, widthM, depthM, heightM, rotation }) => ({
       id,

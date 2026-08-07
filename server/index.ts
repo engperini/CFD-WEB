@@ -117,8 +117,8 @@ async function handleInterpretation(req: IncomingMessage, res: ServerResponse) {
   const instructions = [
     "Voce e o parser tecnico de um modelador parametrico de Data Hall.",
     "Converta a instrucao em JSON estrito no formato {\"message\":\"...\",\"commands\":[...]}",
-    "Use somente estes comandos: create_room, resize_room, add_racks, create_rack_rows, add_fan_walls, move_element, rotate_element, set_aisle_width, set_wall_clearance, auto_arrange, delete_element, clear_layout, undo, redo.",
-    "Use somente estes nomes de campos: count, rows, widthM, lengthM, heightM, depthM, powerKw, airflowM3h, wall, orientation, x, y, z, rotation, id, target, coldAisleM, hotAisleM, wallClearanceM.",
+    "Use somente estes comandos: create_room, resize_room, add_racks, create_rack_rows, add_fan_walls, add_pillars, create_pillar_grid, move_element, rotate_element, set_aisle_width, set_wall_clearance, auto_arrange, delete_element, clear_layout, undo, redo.",
+    "Use somente estes nomes de campos: count, rows, columns, widthM, lengthM, heightM, depthM, powerKw, airflowM3h, wall, orientation, x, y, z, rotation, id, target, coldAisleM, hotAisleM, wallClearanceM.",
     "Use metros em campos *M, kW em powerKw e m3/h em airflowM3h. Converta milimetros para metros.",
     "Para 'N racks em cada fileira', calcule count como N multiplicado pela quantidade atual de fileiras no Estado atual, e inclua create_rack_rows com count e rows.",
     "Nao use a Realtime API. Nao invente ids se o usuario nao especificar um elemento existente.",

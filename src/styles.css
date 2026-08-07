@@ -181,6 +181,21 @@ label {
   font-weight: 700;
 }
 
+.check-field {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 9px;
+  border: 1px solid #aebbc6;
+  border-radius: 6px;
+  background: #f9fbfc;
+}
+
+.check-field input {
+  width: auto;
+  min-height: auto;
+}
+
 input,
 select {
   width: 100%;
