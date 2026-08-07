@@ -147,29 +147,41 @@ describe("layoutEngine", () => {
     ]);
   });
 
-  it("retorna equipamentos interceptados por corte longitudinal", () => {
-    const project = applyCommands(createDefaultProject(), [
+  it("projeta no corte longitudinal os equipamentos a esquerda da linha", () => {
+    const arranged = applyCommands(createDefaultProject(), [
       { type: "add_racks", count: 4 },
       { type: "create_rack_rows", rows: 1 },
       { type: "auto_arrange" }
     ]);
-    const rack = project.elements.find((element) => element.type === "rack")!;
+    const project = applyCommands(arranged, [
+      { type: "move_element", id: "rack-1", x: 2, y: 1 },
+      { type: "move_element", id: "rack-2", x: 4, y: 18 },
+      { type: "move_element", id: "rack-3", x: 14, y: 1 }
+    ]);
 
-    const elements = getSectionElements(project, { axis: "y", positionM: rack.y + rack.depthM / 2 });
+    const elements = getSectionElements(project, { axis: "x", positionM: 10 });
 
-    expect(elements.filter((element) => element.type === "rack")).toHaveLength(4);
+    expect(elements.map((element) => element.id)).toContain("rack-1");
+    expect(elements.map((element) => element.id)).toContain("rack-2");
+    expect(elements.map((element) => element.id)).not.toContain("rack-3");
   });
 
-  it("retorna equipamentos interceptados por corte transversal", () => {
-    const project = applyCommands(createDefaultProject(), [
+  it("projeta no corte transversal os equipamentos acima da linha", () => {
+    const arranged = applyCommands(createDefaultProject(), [
       { type: "add_racks", count: 4 },
       { type: "create_rack_rows", rows: 1 },
       { type: "auto_arrange" }
     ]);
-    const rack = project.elements.find((element) => element.type === "rack")!;
+    const project = applyCommands(arranged, [
+      { type: "move_element", id: "rack-1", x: 2, y: 2 },
+      { type: "move_element", id: "rack-2", x: 14, y: 4 },
+      { type: "move_element", id: "rack-3", x: 2, y: 14 }
+    ]);
 
-    const elements = getSectionElements(project, { axis: "x", positionM: rack.x + rack.widthM / 2 });
+    const elements = getSectionElements(project, { axis: "y", positionM: 10 });
 
-    expect(elements.some((element) => element.id === rack.id)).toBe(true);
+    expect(elements.map((element) => element.id)).toContain("rack-1");
+    expect(elements.map((element) => element.id)).toContain("rack-2");
+    expect(elements.map((element) => element.id)).not.toContain("rack-3");
   });
 });

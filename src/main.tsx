@@ -33,7 +33,7 @@ function App() {
   const [voiceState, setVoiceState] = useState<RecorderState>("idle");
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [history, setHistory] = useState<Array<{ text: string; message: string; commands: StructuredCommand[] }>>([]);
-  const [sectionCut, setSectionCut] = useState<SectionCut>(() => ({ axis: "y", positionM: 12 }));
+  const [sectionCut, setSectionCut] = useState<SectionCut>(() => ({ axis: "x", positionM: 9 }));
   const [planSize, setPlanSize] = useState({ width: 900, height: 430 });
   const [sectionSize, setSectionSize] = useState({ width: 900, height: 300 });
   const planWrapRef = useRef<HTMLDivElement | null>(null);
@@ -369,11 +369,11 @@ function App() {
               <div className="drawing-title">
                 <div>
                   <span className="eyebrow">Corte A-A</span>
-                  <h2>{sectionCut.axis === "y" ? "Seção longitudinal X-Z" : "Seção transversal Y-Z"}</h2>
+                  <h2>{sectionCut.axis === "x" ? "Longitudinal Y-Z" : "Transversal X-Z"}</h2>
                 </div>
                 <div className="section-controls">
-                  <button type="button" className={sectionCut.axis === "y" ? "active" : ""} onClick={() => updateSectionAxis("y")}>Longitudinal</button>
-                  <button type="button" className={sectionCut.axis === "x" ? "active" : ""} onClick={() => updateSectionAxis("x")}>Transversal</button>
+                  <button type="button" className={sectionCut.axis === "x" ? "active" : ""} onClick={() => updateSectionAxis("x")}>Longitudinal</button>
+                  <button type="button" className={sectionCut.axis === "y" ? "active" : ""} onClick={() => updateSectionAxis("y")}>Transversal</button>
                 </div>
               </div>
               <SectionView project={project} cut={sectionCut} elements={sectionElements} size={sectionSize} />
@@ -411,7 +411,7 @@ function App() {
           <Metric label="Area ocupada" value={`${format(stats.occupiedAreaM2)} m2`} />
           <Metric label="Ocupacao" value={`${format(stats.occupiedPercent)}%`} />
           <Metric label="Area da sala" value={`${format(stats.roomAreaM2)} m2`} />
-          <Metric label="Corte A-A" value={`${sectionCut.axis === "y" ? "Y" : "X"} ${format(sectionCut.positionM)} m`} />
+          <Metric label="Corte A-A" value={`${sectionCut.axis === "x" ? "X" : "Y"} ${format(sectionCut.positionM)} m`} />
           <div className="file-actions">
             <button type="button" onClick={saveJson}>Salvar JSON</button>
             <label className="file-label">Carregar JSON<input type="file" accept="application/json" onChange={(event) => loadJson(event.target.files?.[0])} /></label>
@@ -469,8 +469,12 @@ function SectionCutLine(props: {
   const x = offset.x + (isVertical ? cut.positionM * scale : 0);
   const y = offset.y + (isVertical ? 0 : cut.positionM * scale);
   const points = isVertical ? [0, 0, 0, room.lengthM * scale] : [0, 0, room.widthM * scale, 0];
-  const arrowStart = isVertical ? [0, -22, 0, 0] : [-22, 0, 0, 0];
-  const arrowEnd = isVertical ? [0, room.lengthM * scale + 22, 0, room.lengthM * scale] : [room.widthM * scale + 22, 0, room.widthM * scale, 0];
+  const viewArrowStart = isVertical
+    ? [26, room.lengthM * scale * 0.35, 2, room.lengthM * scale * 0.35]
+    : [room.widthM * scale * 0.35, 26, room.widthM * scale * 0.35, 2];
+  const viewArrowEnd = isVertical
+    ? [26, room.lengthM * scale * 0.65, 2, room.lengthM * scale * 0.65]
+    : [room.widthM * scale * 0.65, 26, room.widthM * scale * 0.65, 2];
 
   return (
     <Group
@@ -488,8 +492,8 @@ function SectionCutLine(props: {
       }}
     >
       <Line points={points} stroke="#b83232" strokeWidth={3} dash={[18, 7, 3, 7]} />
-      <Arrow points={arrowStart} pointerLength={10} pointerWidth={10} fill="#b83232" stroke="#b83232" strokeWidth={2} />
-      <Arrow points={arrowEnd} pointerLength={10} pointerWidth={10} fill="#b83232" stroke="#b83232" strokeWidth={2} />
+      <Arrow points={viewArrowStart} pointerLength={10} pointerWidth={10} fill="#b83232" stroke="#b83232" strokeWidth={2} />
+      <Arrow points={viewArrowEnd} pointerLength={10} pointerWidth={10} fill="#b83232" stroke="#b83232" strokeWidth={2} />
       <Text
         text="A"
         x={isVertical ? -18 : -34}
@@ -525,7 +529,7 @@ function SectionView(props: {
   size: { width: number; height: number };
 }) {
   const { project, cut, elements, size } = props;
-  const horizontalM = cut.axis === "y" ? project.room.widthM : project.room.lengthM;
+  const horizontalM = cut.axis === "x" ? project.room.lengthM : project.room.widthM;
   const margin = { left: 52, right: 26, top: 30, bottom: 46 };
   const drawingWidth = Math.max(1, size.width - margin.left - margin.right);
   const drawingHeight = Math.max(1, size.height - margin.top - margin.bottom);
@@ -547,15 +551,15 @@ function SectionView(props: {
         <Line points={[origin.x + horizontalM * sectionScale, ceilingY, origin.x + horizontalM * sectionScale, floorY]} stroke="#10202f" strokeWidth={2} />
         <Text text="A-A" x={origin.x} y={8} fill="#10202f" fontStyle="bold" fontSize={14} />
         <Text
-          text={`${cut.axis === "y" ? "Plano Y" : "Plano X"} = ${format(cut.positionM)} m`}
+          text={`${cut.axis === "x" ? "Plano X" : "Plano Y"} = ${format(cut.positionM)} m | vista ${cut.axis === "x" ? "direita-esquerda" : "inferior-superior"}`}
           x={origin.x + 52}
           y={8}
           fill="#50606d"
           fontSize={13}
         />
         {elements.map((element) => {
-          const horizontalPosition = cut.axis === "y" ? element.x : element.y;
-          const horizontalSize = cut.axis === "y" ? element.widthM : element.depthM;
+          const horizontalPosition = cut.axis === "x" ? element.y : element.x;
+          const horizontalSize = cut.axis === "x" ? element.depthM : element.widthM;
           const x = origin.x + horizontalPosition * sectionScale;
           const y = floorY - element.heightM * sectionScale;
           const width = Math.max(2, horizontalSize * sectionScale);
@@ -601,7 +605,7 @@ function SectionView(props: {
         />
         {elements.length === 0 ? (
           <Text
-            text="Nenhum equipamento interceptado por este plano de corte."
+            text="Nenhum equipamento no lado observado deste plano de corte."
             x={origin.x}
             y={origin.y + project.room.heightM * sectionScale / 2 - 8}
             width={horizontalM * sectionScale}
