@@ -8,6 +8,7 @@ import {
   overlaps
 } from "../src/shared/layoutEngine";
 import { normalizeAiCommands } from "../src/shared/commandNormalizer";
+import { getSectionElements } from "../src/shared/sectionEngine";
 
 describe("layoutEngine", () => {
   it("organiza racks e fan walls automaticamente", () => {
@@ -144,5 +145,31 @@ describe("layoutEngine", () => {
       { type: "create_rack_rows", count: 48, rows: 2 },
       { type: "auto_arrange" }
     ]);
+  });
+
+  it("retorna equipamentos interceptados por corte longitudinal", () => {
+    const project = applyCommands(createDefaultProject(), [
+      { type: "add_racks", count: 4 },
+      { type: "create_rack_rows", rows: 1 },
+      { type: "auto_arrange" }
+    ]);
+    const rack = project.elements.find((element) => element.type === "rack")!;
+
+    const elements = getSectionElements(project, { axis: "y", positionM: rack.y + rack.depthM / 2 });
+
+    expect(elements.filter((element) => element.type === "rack")).toHaveLength(4);
+  });
+
+  it("retorna equipamentos interceptados por corte transversal", () => {
+    const project = applyCommands(createDefaultProject(), [
+      { type: "add_racks", count: 4 },
+      { type: "create_rack_rows", rows: 1 },
+      { type: "auto_arrange" }
+    ]);
+    const rack = project.elements.find((element) => element.type === "rack")!;
+
+    const elements = getSectionElements(project, { axis: "x", positionM: rack.x + rack.widthM / 2 });
+
+    expect(elements.some((element) => element.id === rack.id)).toBe(true);
   });
 });

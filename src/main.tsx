@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Group, Layer, Line, Rect, Stage, Text } from "react-konva";
+import { Arrow, Group, Layer, Line, Rect, Stage, Text } from "react-konva";
 import { z } from "zod";
 import "./styles.css";
 import {
@@ -16,6 +16,7 @@ import {
 } from "./shared/layoutEngine";
 import type { DataHallElement, DataHallProject, StructuredCommand, Wall } from "./shared/types";
 import { commandListSchema } from "./shared/commandSchemas";
+import { getSectionElements, type SectionAxis, type SectionCut } from "./shared/sectionEngine";
 import { blobToBase64, PushToTalkRecorder, type RecorderState } from "./hooks/usePushToTalk";
 
 const STORAGE_KEY = "cfd-web-project-v2";
@@ -32,18 +33,22 @@ function App() {
   const [voiceState, setVoiceState] = useState<RecorderState>("idle");
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [history, setHistory] = useState<Array<{ text: string; message: string; commands: StructuredCommand[] }>>([]);
-  const [stageSize, setStageSize] = useState({ width: 900, height: 620 });
-  const stageWrapRef = useRef<HTMLDivElement | null>(null);
+  const [sectionCut, setSectionCut] = useState<SectionCut>(() => ({ axis: "y", positionM: 12 }));
+  const [planSize, setPlanSize] = useState({ width: 900, height: 430 });
+  const [sectionSize, setSectionSize] = useState({ width: 900, height: 300 });
+  const planWrapRef = useRef<HTMLDivElement | null>(null);
+  const sectionWrapRef = useRef<HTMLDivElement | null>(null);
 
   const stats = useMemo(() => calculateStats(project), [project]);
   const selected = project.elements.find((element) => element.id === selectedId);
+  const sectionElements = useMemo(() => getSectionElements(project, sectionCut), [project, sectionCut]);
   const scale = Math.min(
-    (stageSize.width - 48) / Math.max(project.room.widthM, 1),
-    (stageSize.height - 48) / Math.max(project.room.lengthM, 1)
+    (planSize.width - 48) / Math.max(project.room.widthM, 1),
+    (planSize.height - 48) / Math.max(project.room.lengthM, 1)
   );
   const offset = {
-    x: (stageSize.width - project.room.widthM * scale) / 2,
-    y: (stageSize.height - project.room.lengthM * scale) / 2
+    x: (planSize.width - project.room.widthM * scale) / 2,
+    y: (planSize.height - project.room.lengthM * scale) / 2
   };
 
   useEffect(() => {
@@ -59,13 +64,22 @@ function App() {
 
   useEffect(() => {
     const update = () => {
-      const rect = stageWrapRef.current?.getBoundingClientRect();
-      if (rect) setStageSize({ width: Math.max(320, rect.width), height: Math.max(380, rect.height) });
+      const planRect = planWrapRef.current?.getBoundingClientRect();
+      const sectionRect = sectionWrapRef.current?.getBoundingClientRect();
+      if (planRect) setPlanSize({ width: Math.max(320, planRect.width), height: Math.max(300, planRect.height) });
+      if (sectionRect) setSectionSize({ width: Math.max(320, sectionRect.width), height: Math.max(240, sectionRect.height) });
     };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  useEffect(() => {
+    setSectionCut((current) => ({
+      ...current,
+      positionM: clamp(current.positionM, 0, current.axis === "x" ? project.room.widthM : project.room.lengthM)
+    }));
+  }, [project.room.widthM, project.room.lengthM]);
 
   function commit(next: DataHallProject, message?: string) {
     setPast((items) => [...items.slice(-49), project]);
@@ -228,6 +242,25 @@ function App() {
     commit(moveElement(project, element.id, roomX, roomY), `${element.label} reposicionado.`);
   }
 
+  function updateSectionAxis(axis: SectionAxis) {
+    setSectionCut({
+      axis,
+      positionM: axis === "x" ? project.room.widthM / 2 : project.room.lengthM / 2
+    });
+  }
+
+  function setSectionFromStagePoint(stage: { getPointerPosition: () => { x: number; y: number } | null }) {
+    const point = stage.getPointerPosition();
+    if (!point) return;
+    setSectionCut((current) => ({
+      ...current,
+      positionM:
+        current.axis === "x"
+          ? clamp((point.x - offset.x) / scale, 0, project.room.widthM)
+          : clamp((point.y - offset.y) / scale, 0, project.room.lengthM)
+    }));
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -286,34 +319,66 @@ function App() {
         </form>
 
         <section className="model-area">
-          <div className="canvas-frame" ref={stageWrapRef}>
-            <Stage width={stageSize.width} height={stageSize.height}>
-              <Layer>
-                <Grid room={project.room} scale={scale} offset={offset} />
-                <Rect
-                  x={offset.x}
-                  y={offset.y}
-                  width={project.room.widthM * scale}
-                  height={project.room.lengthM * scale}
-                  fill="#f7fbff"
-                  stroke="#10202f"
-                  strokeWidth={2}
-                />
-                {project.elements.map((element) => (
-                  <ModelElement
-                    key={element.id}
-                    element={element}
-                    selected={element.id === selectedId}
+          <section className="views-grid">
+            <div className="drawing-frame plan-frame" ref={planWrapRef}>
+              <div className="drawing-title">
+                <div>
+                  <span className="eyebrow">Planta</span>
+                  <h2>Layout superior</h2>
+                </div>
+                <span>Clique na sala ou arraste A-A</span>
+              </div>
+              <Stage width={planSize.width} height={planSize.height}>
+                <Layer>
+                  <Grid room={project.room} scale={scale} offset={offset} />
+                  <Rect
+                    x={offset.x}
+                    y={offset.y}
+                    width={project.room.widthM * scale}
+                    height={project.room.lengthM * scale}
+                    fill="#f7fbff"
+                    stroke="#10202f"
+                    strokeWidth={2}
+                    onClick={(event) => setSectionFromStagePoint(event.target.getStage()!)}
+                    onTap={(event) => setSectionFromStagePoint(event.target.getStage()!)}
+                  />
+                  {project.elements.map((element) => (
+                    <ModelElement
+                      key={element.id}
+                      element={element}
+                      selected={element.id === selectedId}
+                      scale={scale}
+                      offset={offset}
+                      onSelect={() => setSelectedId(element.id)}
+                      onDragEnd={onDragEnd}
+                      onRotate={() => commit(rotateElement(project, element.id, element.rotation + 90), `${element.label} rotacionado.`)}
+                    />
+                  ))}
+                  <SectionCutLine
+                    cut={sectionCut}
+                    room={project.room}
                     scale={scale}
                     offset={offset}
-                    onSelect={() => setSelectedId(element.id)}
-                    onDragEnd={onDragEnd}
-                    onRotate={() => commit(rotateElement(project, element.id, element.rotation + 90), `${element.label} rotacionado.`)}
+                    onChange={(positionM) => setSectionCut((current) => ({ ...current, positionM }))}
                   />
-                ))}
-              </Layer>
-            </Stage>
-          </div>
+                </Layer>
+              </Stage>
+            </div>
+
+            <div className="drawing-frame section-frame" ref={sectionWrapRef}>
+              <div className="drawing-title">
+                <div>
+                  <span className="eyebrow">Corte A-A</span>
+                  <h2>{sectionCut.axis === "y" ? "Seção longitudinal X-Z" : "Seção transversal Y-Z"}</h2>
+                </div>
+                <div className="section-controls">
+                  <button type="button" className={sectionCut.axis === "y" ? "active" : ""} onClick={() => updateSectionAxis("y")}>Longitudinal</button>
+                  <button type="button" className={sectionCut.axis === "x" ? "active" : ""} onClick={() => updateSectionAxis("x")}>Transversal</button>
+                </div>
+              </div>
+              <SectionView project={project} cut={sectionCut} elements={sectionElements} size={sectionSize} />
+            </div>
+          </section>
           <section className="voice-panel">
             <button
               type="button"
@@ -346,6 +411,7 @@ function App() {
           <Metric label="Area ocupada" value={`${format(stats.occupiedAreaM2)} m2`} />
           <Metric label="Ocupacao" value={`${format(stats.occupiedPercent)}%`} />
           <Metric label="Area da sala" value={`${format(stats.roomAreaM2)} m2`} />
+          <Metric label="Corte A-A" value={`${sectionCut.axis === "y" ? "Y" : "X"} ${format(sectionCut.positionM)} m`} />
           <div className="file-actions">
             <button type="button" onClick={saveJson}>Salvar JSON</button>
             <label className="file-label">Carregar JSON<input type="file" accept="application/json" onChange={(event) => loadJson(event.target.files?.[0])} /></label>
@@ -389,6 +455,177 @@ function SelectInput({ name, label, value }: { name: string; label: string; valu
 
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function SectionCutLine(props: {
+  cut: SectionCut;
+  room: DataHallProject["room"];
+  scale: number;
+  offset: { x: number; y: number };
+  onChange: (positionM: number) => void;
+}) {
+  const { cut, room, scale, offset, onChange } = props;
+  const isVertical = cut.axis === "x";
+  const x = offset.x + (isVertical ? cut.positionM * scale : 0);
+  const y = offset.y + (isVertical ? 0 : cut.positionM * scale);
+  const points = isVertical ? [0, 0, 0, room.lengthM * scale] : [0, 0, room.widthM * scale, 0];
+  const arrowStart = isVertical ? [0, -22, 0, 0] : [-22, 0, 0, 0];
+  const arrowEnd = isVertical ? [0, room.lengthM * scale + 22, 0, room.lengthM * scale] : [room.widthM * scale + 22, 0, room.widthM * scale, 0];
+
+  return (
+    <Group
+      x={x}
+      y={y}
+      draggable
+      dragBoundFunc={(position) =>
+        isVertical
+          ? { x: clamp(position.x, offset.x, offset.x + room.widthM * scale), y: offset.y }
+          : { x: offset.x, y: clamp(position.y, offset.y, offset.y + room.lengthM * scale) }
+      }
+      onDragEnd={(event) => {
+        const next = isVertical ? (event.target.x() - offset.x) / scale : (event.target.y() - offset.y) / scale;
+        onChange(clamp(next, 0, isVertical ? room.widthM : room.lengthM));
+      }}
+    >
+      <Line points={points} stroke="#b83232" strokeWidth={3} dash={[18, 7, 3, 7]} />
+      <Arrow points={arrowStart} pointerLength={10} pointerWidth={10} fill="#b83232" stroke="#b83232" strokeWidth={2} />
+      <Arrow points={arrowEnd} pointerLength={10} pointerWidth={10} fill="#b83232" stroke="#b83232" strokeWidth={2} />
+      <Text
+        text="A"
+        x={isVertical ? -18 : -34}
+        y={isVertical ? -36 : -17}
+        width={24}
+        height={20}
+        align="center"
+        verticalAlign="middle"
+        fill="#b83232"
+        fontStyle="bold"
+        fontSize={14}
+      />
+      <Text
+        text="A"
+        x={isVertical ? -18 : room.widthM * scale + 12}
+        y={isVertical ? room.lengthM * scale + 14 : -17}
+        width={24}
+        height={20}
+        align="center"
+        verticalAlign="middle"
+        fill="#b83232"
+        fontStyle="bold"
+        fontSize={14}
+      />
+    </Group>
+  );
+}
+
+function SectionView(props: {
+  project: DataHallProject;
+  cut: SectionCut;
+  elements: DataHallElement[];
+  size: { width: number; height: number };
+}) {
+  const { project, cut, elements, size } = props;
+  const horizontalM = cut.axis === "y" ? project.room.widthM : project.room.lengthM;
+  const margin = { left: 52, right: 26, top: 30, bottom: 46 };
+  const drawingWidth = Math.max(1, size.width - margin.left - margin.right);
+  const drawingHeight = Math.max(1, size.height - margin.top - margin.bottom);
+  const sectionScale = Math.min(drawingWidth / horizontalM, drawingHeight / project.room.heightM);
+  const origin = {
+    x: margin.left + (drawingWidth - horizontalM * sectionScale) / 2,
+    y: margin.top + (drawingHeight - project.room.heightM * sectionScale) / 2
+  };
+  const floorY = origin.y + project.room.heightM * sectionScale;
+  const ceilingY = origin.y;
+
+  return (
+    <Stage width={size.width} height={size.height}>
+      <Layer>
+        <Rect x={0} y={0} width={size.width} height={size.height} fill="#f7fbff" />
+        <Line points={[origin.x, ceilingY, origin.x + horizontalM * sectionScale, ceilingY]} stroke="#10202f" strokeWidth={2} />
+        <Line points={[origin.x, floorY, origin.x + horizontalM * sectionScale, floorY]} stroke="#10202f" strokeWidth={3} />
+        <Line points={[origin.x, ceilingY, origin.x, floorY]} stroke="#10202f" strokeWidth={2} />
+        <Line points={[origin.x + horizontalM * sectionScale, ceilingY, origin.x + horizontalM * sectionScale, floorY]} stroke="#10202f" strokeWidth={2} />
+        <Text text="A-A" x={origin.x} y={8} fill="#10202f" fontStyle="bold" fontSize={14} />
+        <Text
+          text={`${cut.axis === "y" ? "Plano Y" : "Plano X"} = ${format(cut.positionM)} m`}
+          x={origin.x + 52}
+          y={8}
+          fill="#50606d"
+          fontSize={13}
+        />
+        {elements.map((element) => {
+          const horizontalPosition = cut.axis === "y" ? element.x : element.y;
+          const horizontalSize = cut.axis === "y" ? element.widthM : element.depthM;
+          const x = origin.x + horizontalPosition * sectionScale;
+          const y = floorY - element.heightM * sectionScale;
+          const width = Math.max(2, horizontalSize * sectionScale);
+          const height = Math.max(2, element.heightM * sectionScale);
+          return (
+            <Group key={element.id}>
+              <Rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                fill={element.type === "rack" ? "#d8e7ff" : "#d9f3ef"}
+                stroke={element.type === "rack" ? "#1f6feb" : "#0c8f7b"}
+                strokeWidth={2}
+              />
+              <HatchLines x={x} y={y} width={width} height={height} stroke={element.type === "rack" ? "#1f6feb" : "#0c8f7b"} />
+              <Text text={element.label} x={x - 12} y={y - 18} width={width + 24} align="center" fill="#10202f" fontStyle="bold" fontSize={12} />
+            </Group>
+          );
+        })}
+        <Line
+          points={[origin.x, floorY + 22, origin.x + horizontalM * sectionScale, floorY + 22]}
+          stroke="#50606d"
+          strokeWidth={1}
+        />
+        <Line points={[origin.x, floorY + 14, origin.x, floorY + 30]} stroke="#50606d" strokeWidth={1} />
+        <Line points={[origin.x + horizontalM * sectionScale, floorY + 14, origin.x + horizontalM * sectionScale, floorY + 30]} stroke="#50606d" strokeWidth={1} />
+        <Text
+          text={`${format(horizontalM)} m`}
+          x={origin.x}
+          y={floorY + 27}
+          width={horizontalM * sectionScale}
+          align="center"
+          fill="#50606d"
+          fontSize={12}
+        />
+        <Text
+          text={`${format(project.room.heightM)} m`}
+          x={origin.x - 48}
+          y={origin.y + project.room.heightM * sectionScale / 2 - 8}
+          fill="#50606d"
+          fontSize={12}
+        />
+        {elements.length === 0 ? (
+          <Text
+            text="Nenhum equipamento interceptado por este plano de corte."
+            x={origin.x}
+            y={origin.y + project.room.heightM * sectionScale / 2 - 8}
+            width={horizontalM * sectionScale}
+            align="center"
+            fill="#50606d"
+            fontSize={13}
+          />
+        ) : null}
+      </Layer>
+    </Stage>
+  );
+}
+
+function HatchLines({ x, y, width, height, stroke }: { x: number; y: number; width: number; height: number; stroke: string }) {
+  const lines = [];
+  const spacing = 9;
+  for (let offsetValue = -height; offsetValue < width; offsetValue += spacing) {
+    const x1 = x + Math.max(0, offsetValue);
+    const y1 = y + Math.max(0, -offsetValue);
+    const x2 = x + Math.min(width, offsetValue + height);
+    const y2 = y + Math.min(height, height - Math.max(0, offsetValue + height - width));
+    lines.push(<Line key={offsetValue} points={[x1, y1, x2, y2]} stroke={stroke} strokeWidth={0.6} opacity={0.35} />);
+  }
+  return <>{lines}</>;
 }
 
 function Grid({ room, scale, offset }: { room: DataHallProject["room"]; scale: number; offset: { x: number; y: number } }) {
@@ -501,6 +738,10 @@ function projectForAi(project: DataHallProject) {
 
 function format(value: number, digits = 1) {
   return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: digits });
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function slug(value: string) {

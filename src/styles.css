@@ -123,7 +123,7 @@ p {
 }
 
 .panel,
-.canvas-frame,
+.drawing-frame,
 .voice-panel {
   border: 1px solid #ccd7df;
   border-radius: 8px;
@@ -211,11 +211,68 @@ select:focus {
   min-width: 0;
 }
 
-.canvas-frame {
-  height: min(62vh, 680px);
-  min-height: 430px;
+.views-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.25fr) minmax(320px, 0.9fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.drawing-frame {
   overflow: hidden;
   background: #dfe9ef;
+}
+
+.plan-frame {
+  height: min(58vh, 620px);
+  min-height: 430px;
+}
+
+.section-frame {
+  height: min(58vh, 620px);
+  min-height: 430px;
+  background: #f1f6f9;
+}
+
+.drawing-title {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #ccd7df;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.drawing-title h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.drawing-title > span {
+  color: #50606d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.section-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.section-controls button {
+  min-height: 32px;
+  padding: 6px 9px;
+  background: #d7e1e8;
+  color: #10202f;
+}
+
+.section-controls button.active {
+  background: #0c8f7b;
+  color: #fff;
 }
 
 .voice-panel {
@@ -377,6 +434,16 @@ select:focus {
     grid-template-columns: 320px 1fr;
   }
 
+  .views-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-frame,
+  .section-frame {
+    height: 46vh;
+    min-height: 340px;
+  }
+
   .insights {
     grid-column: 1 / -1;
     position: static;
@@ -402,7 +469,8 @@ select:focus {
     max-height: none;
   }
 
-  .canvas-frame {
+  .plan-frame,
+  .section-frame {
     height: 52vh;
     min-height: 360px;
   }
