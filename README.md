@@ -1,40 +1,77 @@
-# CFD-WEB — Data Hall AI Modeler
+# CFD-WEB | Data Hall MVP
 
-MVP de um modelador paramétrico de data hall controlado por formulário, texto e voz.
+Web app para modelagem parametrica de Data Hall controlado por interface grafica, texto e voz.
 
-O usuário pressiona e segura o botão de microfone, fala a instrução e solta. O navegador envia o áudio ao servidor, o servidor transcreve pela API de áudio da OpenAI e envia a transcrição para um modelo de linguagem. A IA devolve ações estruturadas, validadas pelo servidor, e a planta 2D é atualizada automaticamente.
+## Funcionalidades
 
-## Funcionalidades atuais
+- Sala parametrica com largura, comprimento e altura.
+- Racks com largura, profundidade, altura, potencia, orientacao e posicao `x`, `y`, `z`.
+- Fan walls com dimensoes, vazao, parede selecionada, orientacao e posicao `x`, `y`, `z`.
+- Organizacao automatica em fileiras com corredores frios/quentes e afastamento das paredes.
+- Canvas 2D com React Konva, arraste por mouse/touch e rotacao por duplo clique/toque.
+- Validacao geometrica para limites da sala, altura e sobreposicoes.
+- Desfazer, refazer, limpar layout, salvar JSON e carregar JSON.
+- Indicadores de racks, fan walls, potencia total, area ocupada, ocupacao e alertas.
+- Entrada por texto e voz com fluxo push-to-talk.
 
-- Sala paramétrica: largura, comprimento e altura.
-- Racks: quantidade, fileiras, dimensões e potência térmica.
-- Fan walls: quantidade, parede, largura e vazão.
-- Corredores frio/quente e afastamento perimetral.
-- Organização automática básica.
-- Entrada de comando por texto.
-- Push-to-talk com `MediaRecorder`.
-- Transcrição automática após soltar o botão.
-- Interpretação por IA com ações permitidas e sanitizadas.
-- Planta SVG com seleção e arraste manual.
-- Indicadores de potência, vazão, densidade e ocupação.
-- Alertas geométricos básicos.
-- Desfazer, refazer, persistência local e exportação JSON.
+## Fluxo de Voz
 
-## Executar localmente
+1. O usuario pressiona e mantem pressionado o botao de microfone.
+2. O navegador grava audio com `MediaRecorder`.
+3. Ao soltar, a gravacao termina e o audio e enviado ao backend.
+4. O backend envia o audio para a API de transcricao da OpenAI.
+5. A transcricao aparece na interface.
+6. O texto transcrito e enviado ao backend para interpretacao pela OpenAI Responses API.
+7. O backend valida os comandos JSON com Zod antes de devolver ao frontend.
+8. O frontend valida novamente e aplica os comandos no motor geometrico.
+
+A Realtime API nao e usada. `OPENAI_API_KEY` permanece somente no backend.
+
+## Comandos Estruturados
+
+- `create_room`
+- `resize_room`
+- `add_racks`
+- `create_rack_rows`
+- `add_fan_walls`
+- `move_element`
+- `rotate_element`
+- `set_aisle_width`
+- `set_wall_clearance`
+- `auto_arrange`
+- `delete_element`
+- `clear_layout`
+- `undo`
+- `redo`
+
+## Arquitetura
+
+```text
+React + TypeScript + Vite
+        |
+React Konva canvas 2D
+        |
+Estado centralizado em App
+        |
+Motor geometrico tipado em src/shared
+        |
+Backend Node.js + TypeScript + Zod
+        |
+OpenAI Audio Transcriptions + Responses API
+```
+
+O modelo ja inclui `x`, `y`, `z`, largura, profundidade, altura e rotacao para cada elemento, preparando a evolucao para 3D e CFD.
+
+## Instalar
 
 Requisito: Node.js 20.11 ou superior.
 
 ```bash
+npm install
 cp .env.example .env
-# edite .env e informe OPENAI_API_KEY
-npm start
 ```
 
-Abra `http://localhost:3000`.
-
-O servidor lê o arquivo `.env` diretamente, portanto não há dependências npm nesta primeira versão.
-
-## Variáveis de ambiente
+Edite `.env` e informe:
 
 ```env
 OPENAI_API_KEY=
@@ -43,7 +80,27 @@ OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
 PORT=3000
 ```
 
-A chave da OpenAI é usada somente no servidor e nunca é enviada ao navegador.
+Nao versione `.env`.
+
+## Executar
+
+Para desenvolvimento com proxy Vite:
+
+```bash
+npm run dev
+npm run dev:client
+```
+
+Abra `http://localhost:5173`.
+
+Para build de producao:
+
+```bash
+npm run build
+npm start
+```
+
+Abra `http://localhost:3000`.
 
 ## Testes
 
@@ -51,45 +108,4 @@ A chave da OpenAI é usada somente no servidor e nunca é enviada ao navegador.
 npm test
 ```
 
-## Comandos de voz esperados
-
-- “Crie uma sala de 24 por 18 metros e 5 metros de altura.”
-- “Coloque 32 racks de 600 milímetros em quatro fileiras, com 40 kW por rack.”
-- “Instale seis fan walls na parede sul.”
-- “Use corredor frio de 1,2 metro e corredor quente de 1 metro.”
-- “Limpe os racks.”
-- “Organize o layout priorizando manutenção.”
-
-## Arquitetura
-
-```text
-Microfone no navegador
-        ↓
-POST /api/transcribe
-        ↓
-OpenAI Audio Transcriptions
-        ↓
-POST /api/interpret
-        ↓
-OpenAI Responses API
-        ↓
-Ações estruturadas e sanitizadas
-        ↓
-Motor geométrico
-        ↓
-Planta SVG + modelo JSON
-```
-
-## Próximas etapas
-
-1. Criar zonas restritas, portas e pilares.
-2. Melhorar o solucionador de layout com restrições e múltiplos objetivos.
-3. Adicionar relações espaciais por seleção: “mova esta fileira”.
-4. Incluir equipamentos elétricos, CDUs e tubulações.
-5. Criar visualização 3D a partir do mesmo modelo JSON.
-6. Exportar geometrias para preparação de CFD/OpenFOAM.
-7. Adicionar autenticação e armazenamento de projetos no backend.
-
-## Teste de escrita
-
-Verificacao de acesso de escrita no GitHub.
+Os testes unitarios cobrem auto-arranjo, comandos estruturados, limites da sala e deteccao de sobreposicao.
